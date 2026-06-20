@@ -91,3 +91,8 @@ curl -X POST http://localhost:8080/api/payments \
 ## Why this project
 
 Built to apply real-time payment processing concepts (validation pipelines, event-driven status updates) in a small, self-contained system using the same core technologies (Spring Boot, Kafka) common in enterprise payment platforms.
+
+
+## Development Notes
+
+This project was designed and built by me, with Claude Code used as a pair-programming assistant for debugging environment setup issues (Kafka connection handling, Gradle migration) — similar to how GitHub Copilot and Devin AI are used in my current role at Wells Fargo.
