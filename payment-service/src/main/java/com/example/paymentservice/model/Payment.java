@@ -33,6 +33,9 @@ public class Payment {
 
     private Instant updatedAt;
 
+    @Column(length = 500)
+    private String aiSummary;
+
     public Payment() {
         this.id = UUID.randomUUID().toString();
         this.createdAt = Instant.now();
@@ -67,4 +70,7 @@ public class Payment {
 
     public Instant getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+
+    public String getAiSummary() { return aiSummary; }
+    public void setAiSummary(String aiSummary) { this.aiSummary = aiSummary; }
 }

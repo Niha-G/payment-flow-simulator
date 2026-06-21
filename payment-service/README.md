@@ -95,4 +95,20 @@ Built to apply real-time payment processing concepts (validation pipelines, even
 
 ## Development Notes
 
-This project was designed and built by me, with Claude Code used as a pair-programming assistant for debugging environment setup issues (Kafka connection handling, Gradle migration) — similar to how GitHub Copilot and Devin AI are used in my current role at Wells Fargo.
+I designed this project to mirror the real-time payment processing systems
+I work on professionally — REST API for payment submission, Kafka-based
+event publishing, and an AI-generated transaction summary feature using the
+Claude API.
+
+Key engineering decisions I made:
+- Chose Gradle over Maven to match my production environment
+- Designed the payment validation and status flow
+- Made event publishing non-blocking so a missing Kafka broker doesn't
+  block payment creation
+- Integrated the Claude API to generate human-readable transaction summaries
+- Debugged environment variable scoping issues across shell sessions when
+  wiring up the API key
+
+I used AI pair-programming tools (Claude Code) for parts of the implementation,
+similar to how I use GitHub Copilot and Devin AI professionally — but the
+design, debugging, and decisions throughout are mine.
