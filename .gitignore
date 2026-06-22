@@ -1,0 +1,39 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Maven
+target/
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+
+# Spring Boot
+*.pid
+
+# Logs
+*.log
+logs/
+
+# IDE - IntelliJ
+.idea/
+*.iml
+*.iws
+out/
+
+# IDE - VS Code
+.vscode/
+
+# IDE - Eclipse
+.classpath
+.project
+.settings/
+
+# macOS
+.DS_Store
+**/.DS_Store
