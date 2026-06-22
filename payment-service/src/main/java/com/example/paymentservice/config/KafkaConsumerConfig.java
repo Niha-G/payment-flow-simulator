@@ -21,6 +21,11 @@ import org.springframework.util.backoff.ExponentialBackOff;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Kafka consumer setup for payment-status events: a manual-ack listener
+ * container plus an error handler that retries transient failures and routes
+ * exhausted records to the dead letter topic.
+ */
 @Configuration
 public class KafkaConsumerConfig {
 
@@ -28,11 +33,8 @@ public class KafkaConsumerConfig {
     private String bootstrapServers;
 
     /**
-     * Dedicated template for republishing failed records to the dead letter
-     * topic. The producer's KafkaTemplate is typed KafkaTemplate<String,
-     * PaymentEvent>, which doesn't satisfy the recoverer's KafkaTemplate<Object,
-     * Object> requirement — so we provide an Object/Object template here. Key
-     * stays a String; the value (a PaymentStatusEvent) is re-serialized as JSON.
+     * Object/Object template for the dead-letter recoverer; the producer's typed
+     * {@code KafkaTemplate<String, PaymentEvent>} doesn't satisfy its signature.
      */
     @Bean
     public KafkaTemplate<Object, Object> dltKafkaTemplate() {
@@ -48,10 +50,9 @@ public class KafkaConsumerConfig {
     }
 
     /**
-     * Retry transient failures (DB connection blips, etc.) with exponential
-     * backoff: 1s, 2s, 4s, 8s, capped at 10s between attempts, giving up
-     * after ~30s total. Anything still failing — or anything explicitly
-     * marked non-retryable below — gets published to "<topic>.DLT".
+     * Retries transient failures with exponential backoff (1s, 2s, 4s, 8s, capped
+     * at 10s, giving up after ~30s) before republishing to "{topic}.DLT";
+     * {@link PaymentNotFoundException} is non-retryable and skips straight there.
      */
     @Bean
     public DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<Object, Object> kafkaTemplate) {
@@ -66,8 +67,7 @@ public class KafkaConsumerConfig {
 
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, backOff);
 
-        // Don't waste retry attempts on errors that will never succeed —
-        // a missing payment record won't appear just because we wait longer.
+        // A missing payment record won't appear on retry — fail straight to the DLT.
         errorHandler.addNotRetryableExceptions(PaymentNotFoundException.class);
 
         return errorHandler;

@@ -18,7 +18,7 @@ A personal portfolio project simulating a simplified real-time payment processin
 - Spring Boot 3.3 (Web, Data JPA, Validation, Kafka)
 - H2 in-memory database
 - Apache Kafka (event publishing)
-- Maven
+- Gradle
 
 ## Project Structure
 

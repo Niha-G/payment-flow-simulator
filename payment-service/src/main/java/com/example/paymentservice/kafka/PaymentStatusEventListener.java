@@ -8,6 +8,10 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
+/**
+ * Consumes payment status events and acknowledges each only after it is
+ * processed, so a processing failure leaves the offset uncommitted for retry.
+ */
 @Component
 public class PaymentStatusEventListener {
 

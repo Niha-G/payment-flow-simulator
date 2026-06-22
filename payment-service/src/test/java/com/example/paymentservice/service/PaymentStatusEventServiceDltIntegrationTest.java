@@ -47,13 +47,9 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 
 /**
- * Integration test for the retry + dead-letter path exercised through
- * PaymentStatusEventService. A mocked ProcessedEventRepository makes the
- * persist step fail repeatedly, so the consumer's DefaultErrorHandler retries
- * (per KafkaConsumerConfig's ExponentialBackOff) and finally republishes the
- * record to "<topic>.DLT".
- *
- * Runs against an embedded broker so no local Docker Kafka is required.
+ * Verifies the retry + dead-letter path: a mocked repository fails the persist
+ * step on every attempt, so the consumer exhausts its backoff retries and the
+ * record is republished to "{topic}.DLT". Runs against an embedded broker.
  */
 @SpringBootTest
 @EmbeddedKafka(
@@ -75,7 +71,6 @@ class PaymentStatusEventServiceDltIntegrationTest {
     @Autowired
     private PaymentRepository paymentRepository;
 
-    // Mocked so the persist step throws, simulating a transient DB failure.
     @MockBean
     private ProcessedEventRepository processedEventRepository;
 
@@ -138,12 +133,10 @@ class PaymentStatusEventServiceDltIntegrationTest {
         event.setStatus(PaymentStatus.COMPLETED.name());
         event.setEventTimestamp(Instant.parse("2026-06-22T10:15:30.00Z"));
 
-        // 2. Send the message directly to the topic.
         kafkaTemplate.send(TOPIC, paymentId, event);
         kafkaTemplate.flush();
 
-        // 3. Consumer is async and retries run with backoff (~30s per KafkaConsumerConfig),
-        //    so poll the DLT until the exhausted record shows up.
+        // Async consumer + ~30s backoff retries, so poll until the record lands on the DLT.
         List<ConsumerRecord<String, String>> dltRecords = new ArrayList<>();
         await().atMost(Duration.ofSeconds(60))
                 .pollInterval(Duration.ofSeconds(1))
@@ -154,7 +147,6 @@ class PaymentStatusEventServiceDltIntegrationTest {
                     assertThat(dltRecords).isNotEmpty();
                 });
 
-        // 4. The DLT payload must carry the same paymentId as the original event.
         ConsumerRecord<String, String> dltRecord = dltRecords.get(0);
         JsonNode payload = readJson(dltRecord.value());
         assertThat(payload.get("paymentId").asText()).isEqualTo(paymentId);

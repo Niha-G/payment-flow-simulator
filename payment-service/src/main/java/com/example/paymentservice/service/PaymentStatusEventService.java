@@ -14,6 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 
+/**
+ * Applies inbound payment status events idempotently, using a derived dedupe
+ * key to drop redeliveries before updating the payment.
+ */
 @Service
 public class PaymentStatusEventService {
 

@@ -9,6 +9,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * Publishes {@link PaymentEvent}s to Kafka on a fire-and-forget basis.
+ */
 @Component
 public class PaymentEventPublisher {
 
@@ -23,6 +26,10 @@ public class PaymentEventPublisher {
         this.kafkaTemplate = kafkaTemplate;
     }
 
+    /**
+     * Publishes the event asynchronously, logging and swallowing any failure so
+     * that a Kafka outage never blocks the calling payment flow.
+     */
     public void publish(PaymentEvent event) {
         log.info("Publishing payment event for paymentId={} status={}", event.getPaymentId(), event.getStatus());
         CompletableFuture.runAsync(() -> {

@@ -11,6 +11,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * REST endpoints for submitting payments and querying their status.
+ */
 @RestController
 @RequestMapping("/api/payments")
 public class PaymentController {

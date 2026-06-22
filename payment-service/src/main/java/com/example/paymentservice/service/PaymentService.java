@@ -16,7 +16,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-
+/**
+ * Validates and persists payments, enriches them with an AI-generated summary,
+ * and publishes the resulting status events.
+ */
 @Service
 public class PaymentService {
 
@@ -41,7 +44,6 @@ public class PaymentService {
         payment.setAmount(request.getAmount());
         payment.setCurrency(request.getCurrency());
 
-        // Basic validation rules - mirrors real payment validation pipelines
         if (request.getSenderAccount().equals(request.getReceiverAccount())) {
             payment.setStatus(PaymentStatus.REJECTED);
             log.warn("Payment {} rejected: sender and receiver accounts match", payment.getId());
@@ -73,6 +75,10 @@ public class PaymentService {
         return paymentRepository.findAll();
     }
 
+    /**
+     * Asks the Anthropic API for a one-line summary of the payment; returns
+     * {@code null} on failure so summary generation never blocks a payment.
+     */
     @SuppressWarnings("unchecked")
     private String fetchAiSummary(Payment payment) {
         String apiKey = System.getenv("ANTHROPIC_API_KEY");
