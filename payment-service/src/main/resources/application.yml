@@ -32,8 +32,17 @@ spring:
     consumer:
       group-id: payment-processor-group
       auto-offset-reset: earliest
+      enable-auto-commit: false   # required since we ack manually in code
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.example.paymentservice.event"
+        spring.json.value.default.type: com.example.paymentservice.event.PaymentStatusEvent
+        spring.json.use.type.headers: false
 
 app:
   kafka:
     topic:
       payment-events: payment-events-topic
+    topics:
+      payment-status-events: payment-events-topic   # consumer listens on the producer's topic
