@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.CompletableFuture;
+
 @Component
 public class PaymentEventPublisher {
 
@@ -23,6 +25,13 @@ public class PaymentEventPublisher {
 
     public void publish(PaymentEvent event) {
         log.info("Publishing payment event for paymentId={} status={}", event.getPaymentId(), event.getStatus());
-        kafkaTemplate.send(topic, event.getPaymentId(), event);
+        CompletableFuture.runAsync(() -> {
+            try {
+                kafkaTemplate.send(topic, event.getPaymentId(), event);
+            } catch (Exception e) {
+                log.warn("Failed to publish payment event for paymentId={}: {}",
+                        event.getPaymentId(), e.getMessage());
+            }
+        });
     }
 }
