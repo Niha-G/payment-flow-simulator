@@ -36,6 +36,13 @@ public class Payment {
     @Column(length = 500)
     private String aiSummary;
 
+    @Column(length = 100)
+    private String aiCategory;
+
+    private Integer aiRiskScore;
+
+    private Boolean aiAnomalyFlag;
+
     public Payment() {
         this.id = UUID.randomUUID().toString();
         this.createdAt = Instant.now();
@@ -71,4 +78,13 @@ public class Payment {
 
     public String getAiSummary() { return aiSummary; }
     public void setAiSummary(String aiSummary) { this.aiSummary = aiSummary; }
+
+    public String getAiCategory() { return aiCategory; }
+    public void setAiCategory(String aiCategory) { this.aiCategory = aiCategory; }
+
+    public Integer getAiRiskScore() { return aiRiskScore; }
+    public void setAiRiskScore(Integer aiRiskScore) { this.aiRiskScore = aiRiskScore; }
+
+    public Boolean getAiAnomalyFlag() { return aiAnomalyFlag; }
+    public void setAiAnomalyFlag(Boolean aiAnomalyFlag) { this.aiAnomalyFlag = aiAnomalyFlag; }
 }

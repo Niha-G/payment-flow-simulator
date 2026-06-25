@@ -6,8 +6,10 @@ import com.example.paymentservice.kafka.PaymentEventPublisher;
 import com.example.paymentservice.model.Payment;
 import com.example.paymentservice.model.PaymentStatus;
 import com.example.paymentservice.repository.PaymentRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -17,8 +19,9 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Validates and persists payments, enriches them with an AI-generated summary,
- * and publishes the resulting status events.
+ * Application service for the payment lifecycle: validates and persists incoming
+ * payments, enriches them with derived insights, and publishes status events for
+ * downstream consumers.
  */
 @Service
 public class PaymentService {
@@ -30,11 +33,24 @@ public class PaymentService {
     private final PaymentEventPublisher eventPublisher;
     private final WebClient webClient;
 
+    @Value("${app.insights.api-key}")
+    private String apiKey;
+
+    @Value("${app.insights.model}")
+    private String model;
+
+    @Value("${app.insights.version-header}")
+    private String versionHeader;
+
+    @Value("${app.insights.version}")
+    private String version;
+
     public PaymentService(PaymentRepository paymentRepository, PaymentEventPublisher eventPublisher,
-                          WebClient.Builder webClientBuilder) {
+                          WebClient.Builder webClientBuilder,
+                          @Value("${app.insights.base-url}") String baseUrl) {
         this.paymentRepository = paymentRepository;
         this.eventPublisher = eventPublisher;
-        this.webClient = webClientBuilder.baseUrl("https://api.anthropic.com").build();
+        this.webClient = webClientBuilder.baseUrl(baseUrl).build();
     }
 
     public Payment submitPayment(PaymentRequest request) {
@@ -56,7 +72,7 @@ public class PaymentService {
 
         Payment saved = paymentRepository.save(payment);
 
-        saved.setAiSummary(fetchAiSummary(saved));
+        fetchAndApplyInsights(saved);
         saved = paymentRepository.save(saved);
 
         eventPublisher.publish(new PaymentEvent(
@@ -71,46 +87,72 @@ public class PaymentService {
         return paymentRepository.findById(id);
     }
 
+
     public List<Payment> getAllPayments() {
         return paymentRepository.findAll();
     }
 
     /**
-     * Asks the Anthropic API for a one-line summary of the payment; returns
-     * {@code null} on failure so summary generation never blocks a payment.
+     * Enriches the given payment in place with derived insights: a short summary,
+     * a classification, a risk score, and an anomaly flag. Any failure is logged
+     * and suppressed so that enrichment never blocks payment processing; in that
+     * case the payment is left without insights.
+     *
+     * @param payment the persisted payment to enrich
      */
     @SuppressWarnings("unchecked")
-    private String fetchAiSummary(Payment payment) {
-        String apiKey = System.getenv("ANTHROPIC_API_KEY");
+    private void fetchAndApplyInsights(Payment payment) {
         String prompt = String.format(
-                "Give a one-sentence summary of this payment: %s sent %s %s to %s (status: %s).",
-                payment.getSenderAccount(), payment.getAmount(), payment.getCurrency(),
-                payment.getReceiverAccount(), payment.getStatus());
+                "Analyze this payment and respond with ONLY a JSON object, no other text:\n" +
+                        "Sender: %s, Receiver: %s, Amount: %s %s, Status: %s\n\n" +
+                        "Return exactly this structure:\n" +
+                        "{\"summary\": \"one sentence description\", " +
+                        "\"category\": \"one of: STANDARD, HIGH_VALUE, SUSPICIOUS, INTERNAL\", " +
+                        "\"riskScore\": <integer 1-100>, " +
+                        "\"anomalyFlag\": <true or false>}",
+                payment.getSenderAccount(), payment.getReceiverAccount(),
+                payment.getAmount(), payment.getCurrency(), payment.getStatus());
 
         Map<String, Object> body = Map.of(
-                "model", "claude-haiku-4-5-20251001",
-                "max_tokens", 100,
+                "model", model,
+                "max_tokens", 200,
                 "messages", List.of(Map.of("role", "user", "content", prompt)));
 
         try {
             Map<?, ?> response = webClient.post()
                     .uri("/v1/messages")
                     .header("x-api-key", apiKey)
-                    .header("anthropic-version", "2023-06-01")
+                    .header(versionHeader, version)
                     .header("Content-Type", "application/json")
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(Map.class)
                     .block();
 
-            List<Map<String, Object>> content = (List<Map<String, Object>>) response.get("content");
-            return (String) content.get(0).get("text");
+            List<Map<String, Object>> content =
+                    response != null ? (List<Map<String, Object>>) response.get("content") : null;
+            if (content == null || content.isEmpty()) {
+                log.warn("Insights response missing 'content' for payment {}", payment.getId());
+                return;
+            }
+
+            String json = (String) content.get(0).get("text");
+            json = json.replaceAll("(?s)```json\\s*", "").replaceAll("```", "").trim();
+            log.info("Raw insights response: {}", json);
+
+            ObjectMapper mapper = new ObjectMapper();
+            Map<String, Object> insights = mapper.readValue(json, Map.class);
+
+            payment.setAiSummary((String) insights.get("summary"));
+            payment.setAiCategory((String) insights.get("category"));
+            payment.setAiRiskScore((Integer) insights.get("riskScore"));
+            payment.setAiAnomalyFlag((Boolean) insights.get("anomalyFlag"));
+
         } catch (Exception e) {
-            log.warn("Failed to get AI summary for payment {}: {}", payment.getId(), e.getMessage());
-            return null;
+            log.warn("Failed to get insights for payment {}: {}", payment.getId(), e.getMessage());
+            log.warn("Full exception: ", e);
         }
     }
-
     public Payment updateStatus(String id, PaymentStatus status) {
         Payment payment = paymentRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Payment not found: " + id));

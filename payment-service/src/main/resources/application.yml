@@ -41,6 +41,12 @@ spring:
         spring.json.use.type.headers: false
 
 app:
+  insights:
+    base-url: https://api.anthropic.com
+    api-key: ${ANTHROPIC_API_KEY:}
+    model: claude-haiku-4-5-20251001
+    version-header: anthropic-version
+    version: "2023-06-01"
   kafka:
     topic:
       payment-events: payment-events-topic
