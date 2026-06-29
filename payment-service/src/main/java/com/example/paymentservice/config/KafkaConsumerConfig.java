@@ -22,9 +22,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Kafka consumer setup for payment-status events: a manual-ack listener
- * container plus an error handler that retries transient failures and routes
- * exhausted records to the dead letter topic.
+ * Consumer wiring: a manual-ack listener container plus an error handler that
+ * retries transient failures and dead-letters whatever's left.
  */
 @Configuration
 public class KafkaConsumerConfig {
@@ -33,8 +32,8 @@ public class KafkaConsumerConfig {
     private String bootstrapServers;
 
     /**
-     * Object/Object template for the dead-letter recoverer; the producer's typed
-     * {@code KafkaTemplate<String, PaymentEvent>} doesn't satisfy its signature.
+     * The recoverer needs an Object/Object template — the producer's typed
+     * {@code KafkaTemplate<String, PaymentEvent>} won't fit its signature.
      */
     @Bean
     public KafkaTemplate<Object, Object> dltKafkaTemplate() {
@@ -42,17 +41,17 @@ public class KafkaConsumerConfig {
         config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-        // Mirror the producer's bounded-block behaviour so DLT publishing can't
-        // hang indefinitely when no broker is reachable.
+        // Same bounded block as the producer, so DLT publishing can't hang
+        // forever when no broker is up.
         config.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 5_000L);
         ProducerFactory<Object, Object> producerFactory = new DefaultKafkaProducerFactory<>(config);
         return new KafkaTemplate<>(producerFactory);
     }
 
     /**
-     * Retries transient failures with exponential backoff (1s, 2s, 4s, 8s, capped
-     * at 10s, giving up after ~30s) before republishing to "{topic}.DLT";
-     * {@link PaymentNotFoundException} is non-retryable and skips straight there.
+     * Retries with exponential backoff (1s, 2s, 4s, 8s, capped at 10s, ~30s
+     * total) then republishes to "{topic}.DLT". {@link PaymentNotFoundException}
+     * isn't retried and goes straight to the DLT.
      */
     @Bean
     public DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<Object, Object> kafkaTemplate) {
@@ -67,7 +66,7 @@ public class KafkaConsumerConfig {
 
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, backOff);
 
-        // A missing payment record won't appear on retry — fail straight to the DLT.
+        // A missing payment won't show up on retry, so don't bother.
         errorHandler.addNotRetryableExceptions(PaymentNotFoundException.class);
 
         return errorHandler;
@@ -83,8 +82,8 @@ public class KafkaConsumerConfig {
         factory.setConsumerFactory(consumerFactory);
         factory.setCommonErrorHandler(kafkaErrorHandler);
 
-        // Manual ack: we only advance the offset after the DB write
-        // succeeds (see PaymentStatusEventListener), not just on receipt.
+        // Manual ack: commit the offset only after the DB write succeeds,
+        // not on receipt (see PaymentStatusEventListener).
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
 
         return factory;

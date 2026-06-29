@@ -11,13 +11,13 @@ import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 
 /**
- * Tracks derived event keys that have already been processed so that
- * redelivery (at-least-once semantics) doesn't double-apply a status
- * update. The producer emits no unique event id, so the key stored here is
- * derived in PaymentStatusEventService (paymentId+status+eventTimestamp).
- * The unique constraint on event_id is what actually enforces idempotency —
- * the existsByEventId() check is just a fast-path that avoids hitting that
- * constraint on the common case.
+ * Records the event keys we've already handled so a redelivery (Kafka is
+ * at-least-once) doesn't apply the same status update twice. The producer
+ * sends no event id, so the key is derived in PaymentStatusEventService as
+ * paymentId+status+eventTimestamp.
+ *
+ * <p>The unique constraint on event_id is what actually enforces idempotency;
+ * the existsByEventId() check is just a fast path for the common case.
  */
 @Entity
 @Table(name = "processed_events", uniqueConstraints = @UniqueConstraint(columnNames = "event_id"))

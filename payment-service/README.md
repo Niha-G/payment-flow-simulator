@@ -41,8 +41,9 @@ payment-service/
 
 ### Prerequisites
 - Java 17+
-- Maven
 - Kafka running locally (see below) — or comment out Kafka calls to run without it
+
+(Gradle isn't required — use the bundled `./gradlew` wrapper.)
 
 ### Start Kafka (via Docker)
 ```bash
@@ -52,7 +53,7 @@ docker run -d --name kafka -p 9092:9092 apache/kafka:latest
 ### Run the service
 ```bash
 cd payment-service
-mvn spring-boot:run
+./gradlew bootRun
 ```
 
 Service runs on `http://localhost:8080`

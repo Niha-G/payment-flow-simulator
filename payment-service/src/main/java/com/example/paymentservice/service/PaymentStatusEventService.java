@@ -15,8 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 
 /**
- * Applies inbound payment status events idempotently, using a derived dedupe
- * key to drop redeliveries before updating the payment.
+ * Applies inbound status events to payments, dropping redeliveries via a
+ * derived dedupe key so the update only happens once.
  */
 @Service
 public class PaymentStatusEventService {
@@ -34,10 +34,9 @@ public class PaymentStatusEventService {
 
     @Transactional
     public void process(PaymentStatusEvent event) {
-        // The producer's PaymentEvent carries no unique event id, so we derive a
-        // stable idempotency key from the fields it does publish. A genuine
-        // redelivery repeats paymentId+status+eventTimestamp exactly; a real
-        // subsequent transition differs in status (and timestamp).
+        // No event id from the producer, so build a dedupe key from what we do
+        // get. A redelivery repeats paymentId+status+eventTimestamp exactly; a
+        // real next transition differs in status (and timestamp).
         String dedupeKey = event.getPaymentId() + ":" + event.getStatus()
                 + ":" + event.getEventTimestamp();
 

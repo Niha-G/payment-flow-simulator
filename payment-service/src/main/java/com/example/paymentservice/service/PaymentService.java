@@ -19,9 +19,8 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Application service for the payment lifecycle: validates and persists incoming
- * payments, enriches them with derived insights, and publishes status events for
- * downstream consumers.
+ * Core payment logic: validate and persist a payment, enrich it with AI
+ * insights, and publish a status event for downstream consumers.
  */
 @Service
 public class PaymentService {
@@ -93,12 +92,11 @@ public class PaymentService {
     }
 
     /**
-     * Enriches the given payment in place with derived insights: a short summary,
-     * a classification, a risk score, and an anomaly flag. Any failure is logged
-     * and suppressed so that enrichment never blocks payment processing; in that
-     * case the payment is left without insights.
+     * Calls Claude to fill in the payment's summary, category, risk score, and
+     * anomaly flag. Best-effort: on any failure we log it and leave the insight
+     * fields empty rather than fail the payment.
      *
-     * @param payment the persisted payment to enrich
+     * @param payment the persisted payment to enrich, mutated in place
      */
     @SuppressWarnings("unchecked")
     private void fetchAndApplyInsights(Payment payment) {

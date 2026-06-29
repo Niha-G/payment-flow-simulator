@@ -4,13 +4,10 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
- * Inbound Kafka event for an async payment status update.
- *
- * Field names/types mirror the producer's PaymentEvent
- * (com.example.paymentservice.event.PaymentEvent) so Jackson deserializes
- * the published JSON directly. `status` is carried as a String (the producer
- * serializes the PaymentStatus enum by name) and converted to the enum in
- * PaymentStatusEventService.
+ * Inbound Kafka event for an async status update. Fields mirror the producer's
+ * {@link PaymentEvent} so Jackson can deserialize the JSON straight into this.
+ * {@code status} stays a String here (the producer writes the enum by name) and
+ * is converted back to the enum in PaymentStatusEventService.
  */
 public class PaymentStatusEvent {
 
